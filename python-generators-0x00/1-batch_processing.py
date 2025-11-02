@@ -2,7 +2,7 @@
 import mysql.connector
 
 def stream_users_in_batches(batch_size):
-    """Generator fetching rows in batches from user_data."""
+    """Generator that yields batches of rows from user_data."""
     connection = mysql.connector.connect(
         host="localhost",
         user="root",
@@ -27,9 +27,10 @@ def stream_users_in_batches(batch_size):
     connection.close()
 
 def batch_processing(batch_size):
-    """Process batches to yield users with age > 25."""
-    for batch in stream_users_in_batches(batch_size):
-        for user in batch:
-            if user['age'] > 25:
-                print(user)
-                # Yield also allowed if preferred: yield user
+    """Generator that yields users older than 25 from each batch."""
+    def generator():
+        for batch in stream_users_in_batches(batch_size):
+            for user in batch:
+                if user['age'] > 25:
+                    yield user
+    return generator()
