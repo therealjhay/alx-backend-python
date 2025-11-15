@@ -41,3 +41,7 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message from {self.sender.email} at {self.sent_at}"
+
+@property
+def password_hash(self):
+    return self.password
