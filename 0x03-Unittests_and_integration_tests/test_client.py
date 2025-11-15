@@ -24,13 +24,17 @@ class TestGithubOrgClient(unittest.TestCase):
         """
         Test that GithubOrgClient.org returns the correct org info.
         """
-        # Structure matches fixtures.org_payload
-        mock_get_json.return_value = {"repos_url": f"https://api.github.com/orgs/{org_name}/repos"}
+        mock_get_json.return_value = {
+            "repos_url": f"https://api.github.com/orgs/{org_name}/repos"
+        }
         client_obj = GithubOrgClient(org_name)
         result = client_obj.org
         expected_url = f"https://api.github.com/orgs/{org_name}"
         mock_get_json.assert_called_once_with(expected_url)
-        self.assertEqual(result, {"repos_url": f"https://api.github.com/orgs/{org_name}/repos"})
+        self.assertEqual(
+            result,
+            {"repos_url": f"https://api.github.com/orgs/{org_name}/repos"}
+        )
 
     def test_public_repos_url(self):
         """
@@ -50,7 +54,6 @@ class TestGithubOrgClient(unittest.TestCase):
         """
         Test that GithubOrgClient.public_repos returns expected repo list.
         """
-        # Use repo payload structure in fixtures
         mock_get_json.return_value = fixtures.repos_payload
         with patch.object(
             GithubOrgClient,
@@ -99,7 +102,6 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
 
         def get_url_side_effect(url):
             mock_response = Mock()
-            # Match your fixture structure
             if url == "https://api.github.com/orgs/google":
                 mock_response.json.return_value = cls.org_payload
             elif url == cls.org_payload["repos_url"]:
@@ -114,7 +116,7 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         cls.get_patcher.stop()
 
     def test_public_repos(self):
-        """Assert full repo names match expected from fixtures."""
+        """Assert repo names match expected from fixtures."""
         client = GithubOrgClient("google")
         self.assertEqual(client.public_repos(), self.expected_repos)
 
@@ -125,6 +127,7 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
             client.public_repos("apache-2.0"),
             self.apache2_repos
         )
+
 
 if __name__ == "__main__":
     unittest.main()
