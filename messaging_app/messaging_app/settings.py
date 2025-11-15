@@ -78,6 +78,8 @@ TEMPLATES = [
     },
 ]
 
+AUTH_USER_MODEL = 'chats.User'
+
 WSGI_APPLICATION = 'messaging_app.wsgi.application'
 
 
