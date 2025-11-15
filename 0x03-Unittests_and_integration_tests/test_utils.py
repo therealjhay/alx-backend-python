@@ -20,7 +20,9 @@ class TestAccessNestedMap(unittest.TestCase):
         ({"a": {"b": 2}}, ("a", "b"), 2),
     ])
     def test_access_nested_map(self, nested_map, path, expected):
-        """Test that access_nested_map returns the expected value for a given path."""
+        """
+        Test that access_nested_map returns the expected value for a given path.
+        """
         self.assertEqual(access_nested_map(nested_map, path), expected)
 
     @parameterized.expand([
@@ -29,7 +31,7 @@ class TestAccessNestedMap(unittest.TestCase):
     ])
     def test_access_nested_map_exception(self, nested_map, path, expected_message):
         """
-        Test that access_nested_map raises KeyError with correct message for invalid paths.
+        Test that access_nested_map raises KeyError with correct message for paths.
         """
         with self.assertRaises(KeyError) as cm:
             access_nested_map(nested_map, path)
@@ -47,7 +49,9 @@ class TestGetJson(unittest.TestCase):
     ])
     @patch('utils.requests.get')
     def test_get_json(self, test_url, test_payload, mock_get):
-        """Test that get_json returns correct payload and makes proper HTTP request."""
+        """
+        Test that get_json returns correct payload and makes proper HTTP request.
+        """
         mock_json = Mock()
         mock_json.json.return_value = test_payload
         mock_get.return_value = mock_json
@@ -63,7 +67,9 @@ class TestMemoize(unittest.TestCase):
     """
 
     def test_memoize(self):
-        """Test that memoize caches method output after first call."""
+        """
+        Test that memoize caches method output after first call.
+        """
         class TestClass:
             def a_method(self):
                 """Returns 42 always."""
@@ -71,7 +77,7 @@ class TestMemoize(unittest.TestCase):
 
             @memoize
             def a_property(self):
-                """Returns the result of a_method, potentially cached."""
+                """Returns result of a_method, potentially cached."""
                 return self.a_method()
 
         with patch.object(TestClass, "a_method", return_value=42) as mock_method:
