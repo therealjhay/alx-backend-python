@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from .models import User, Conversation, Message
 
-# User Serializer
+# User Serializer with CharField and ValidationError
 class UserSerializer(serializers.ModelSerializer):
+    phone_number = serializers.CharField(required=False, allow_blank=True)
+
     class Meta:
         model = User
         fields = [
@@ -10,7 +12,12 @@ class UserSerializer(serializers.ModelSerializer):
             'phone_number', 'role', 'created_at'
         ]
 
-# Message Serializer
+    def validate_email(self, value):
+        if not value.endswith('@example.com'):
+            raise serializers.ValidationError("Email must be from @example.com domain.")
+        return value
+
+# Message Serializer with nested sender
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
 
@@ -22,10 +29,10 @@ class MessageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['sent_at']
 
-# Conversation Serializer with nested messages
+# Conversation Serializer with SerializerMethodField
 class ConversationSerializer(serializers.ModelSerializer):
     participants = UserSerializer(many=True, read_only=True)
-    messages = MessageSerializer(many=True, read_only=True, source='messages')
+    messages = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
@@ -33,3 +40,7 @@ class ConversationSerializer(serializers.ModelSerializer):
             'conversation_id', 'participants',
             'created_at', 'messages'
         ]
+
+    def get_messages(self, obj):
+        messages = obj.messages.all().order_by('-sent_at')
+        return MessageSerializer(messages, many=True).data
