@@ -23,7 +23,10 @@ class TestAccessNestedMap(unittest.TestCase):
         """
         Test that access_nested_map returns the expected value for a given path.
         """
-        self.assertEqual(access_nested_map(nested_map, path), expected)
+        self.assertEqual(
+            access_nested_map(nested_map, path),
+            expected
+        )
 
     @parameterized.expand([
         ({}, ("a",), "a"),
@@ -35,7 +38,10 @@ class TestAccessNestedMap(unittest.TestCase):
         """
         with self.assertRaises(KeyError) as cm:
             access_nested_map(nested_map, path)
-        self.assertEqual(str(cm.exception), repr(expected_msg))
+        self.assertEqual(
+            str(cm.exception),
+            repr(expected_msg)
+        )
 
 
 class TestGetJson(unittest.TestCase):
@@ -77,7 +83,9 @@ class TestMemoize(unittest.TestCase):
 
             @memoize
             def a_property(self):
-                """Returns result of a_method, potentially cached."""
+                """
+                Returns result of a_method, potentially cached.
+                """
                 return self.a_method()
 
         with patch.object(TestClass, "a_method", return_value=42) as mock_method:
