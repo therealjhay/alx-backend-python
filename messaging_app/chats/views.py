@@ -3,25 +3,19 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from .models import Conversation, Message, User
 from .serializers import ConversationSerializer, MessageSerializer
-from .permissions import IsParticipantOfConversation   # ✅ custom permission
+from .permissions import IsParticipantOfConversation
+from .filters import MessageFilter
+from .pagination import MessagePagination
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing conversations.
-    - Only authenticated participants can access their conversations.
-    - Supports search and ordering.
-    """
     serializer_class = ConversationSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['participants__email']
     ordering_fields = ['created_at']
-
-    # ✅ Apply custom permissions
     permission_classes = [permissions.IsAuthenticated, IsParticipantOfConversation]
 
     def get_queryset(self):
-        # Only return conversations where the logged-in user is a participant
         return Conversation.objects.filter(participants=self.request.user)
 
     def create(self, request, *args, **kwargs):
@@ -32,7 +26,6 @@ class ConversationViewSet(viewsets.ModelViewSet):
         conversation = Conversation.objects.create()
         users = User.objects.filter(user_id__in=participant_ids)
         conversation.participants.set(users)
-        # Ensure the creator is also added as a participant
         conversation.participants.add(request.user)
         conversation.save()
 
@@ -41,21 +34,15 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 
 class MessageViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing messages.
-    - Only authenticated participants can send/view/update/delete messages.
-    - Supports search and ordering.
-    """
     serializer_class = MessageSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    permission_classes = [permissions.IsAuthenticated, IsParticipantOfConversation]
+    filterset_class = MessageFilter
+    pagination_class = MessagePagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter,]
     search_fields = ['message_body', 'sender__email']
     ordering_fields = ['sent_at']
 
-    # ✅ Apply custom permissions
-    permission_classes = [permissions.IsAuthenticated, IsParticipantOfConversation]
-
     def get_queryset(self):
-        # Only return messages from conversations the logged-in user is part of
         return Message.objects.filter(conversation__participants=self.request.user)
 
     def create(self, request, *args, **kwargs):
@@ -67,7 +54,6 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         conversation = get_object_or_404(Conversation, conversation_id=conversation_id)
 
-        # Ensure the user is part of the conversation before sending a message
         if request.user not in conversation.participants.all():
             return Response({"error": "You are not a participant in this conversation."},
                             status=status.HTTP_403_FORBIDDEN)
