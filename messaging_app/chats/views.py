@@ -1,9 +1,10 @@
-from rest_framework import viewsets, status, filters, permissions
+from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from .models import Conversation, Message, User
 from .serializers import ConversationSerializer, MessageSerializer
-from .permissions import IsParticipant   # ✅ import your custom permission
+from .permissions import IsParticipantOfConversation   # ✅ import custom permission
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -12,8 +13,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
     search_fields = ['participants__email']
     ordering_fields = ['created_at']
 
-    # ✅ Add both permissions here
-    permission_classes = [permissions.IsAuthenticated, IsParticipant]
+    # ✅ Apply custom permissions
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
 
     def get_queryset(self):
         return Conversation.objects.filter(participants=self.request.user)
@@ -39,8 +40,8 @@ class MessageViewSet(viewsets.ModelViewSet):
     search_fields = ['message_body', 'sender__email']
     ordering_fields = ['sent_at']
 
-    # ✅ Add both permissions here
-    permission_classes = [permissions.IsAuthenticated, IsParticipant]
+    # ✅ Apply custom permissions
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
 
     def get_queryset(self):
         return Message.objects.filter(conversation__participants=self.request.user)

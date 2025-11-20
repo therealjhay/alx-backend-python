@@ -1,16 +1,22 @@
 from rest_framework import permissions
 
-class IsParticipant(permissions.BasePermission):
+class IsParticipantOfConversation(permissions.BasePermission):
     """
-    Custom permission: only allow participants of a conversation to view or send messages.
+    Custom permission:
+    - Only authenticated users can access the API
+    - Only participants of a conversation can view, send, update, or delete messages
     """
 
+    def has_permission(self, request, view):
+        # ✅ Ensure user is authenticated globally
+        return request.user and request.user.is_authenticated
+
     def has_object_permission(self, request, view, obj):
-        # For Conversation objects
+        # ✅ For Conversation objects
         if hasattr(obj, 'participants'):
             return request.user in obj.participants.all()
 
-        # For Message objects
+        # ✅ For Message objects
         if hasattr(obj, 'conversation'):
             return request.user in obj.conversation.participants.all()
 
