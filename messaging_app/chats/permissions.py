@@ -12,12 +12,28 @@ class IsParticipantOfConversation(permissions.BasePermission):
         return request.user and request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
-        # ✅ For Conversation objects
-        if hasattr(obj, 'participants'):
-            return request.user in obj.participants.all()
+        # ✅ Allow safe methods (GET, HEAD, OPTIONS) if user is a participant
+        if request.method in permissions.SAFE_METHODS:
+            if hasattr(obj, 'participants'):
+                return request.user in obj.participants.all()
+            if hasattr(obj, 'conversation'):
+                return request.user in obj.conversation.participants.all()
+            return False
 
-        # ✅ For Message objects
-        if hasattr(obj, 'conversation'):
-            return request.user in obj.conversation.participants.all()
+        # ✅ Explicitly handle unsafe methods: PUT, PATCH, DELETE
+        if request.method in ['PUT', 'PATCH', 'DELETE']:
+            if hasattr(obj, 'participants'):
+                return request.user in obj.participants.all()
+            if hasattr(obj, 'conversation'):
+                return request.user in obj.conversation.participants.all()
+            return False
+
+        # ✅ For POST (creating messages), ensure user is a participant
+        if request.method == 'POST':
+            if hasattr(obj, 'participants'):
+                return request.user in obj.participants.all()
+            if hasattr(obj, 'conversation'):
+                return request.user in obj.conversation.participants.all()
+            return False
 
         return False
