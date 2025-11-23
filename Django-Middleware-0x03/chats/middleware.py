@@ -17,7 +17,7 @@ if not logger.handlers:
 
 class RequestLoggingMiddleware:
     """
-    Middleware that logs each request with timestamp, user, method, path, and response status.
+    Logs each request with timestamp, user, method, path, and response status.
     """
 
     def __init__(self, get_response):
@@ -38,8 +38,7 @@ class RequestLoggingMiddleware:
 
 class RestrictAccessByTimeMiddleware:
     """
-    Middleware that restricts access to the messaging app
-    outside of 6 AM - 9 PM server time.
+    Restricts access outside of 6 AM - 9 PM server time.
     """
 
     def __init__(self, get_response):
@@ -48,7 +47,6 @@ class RestrictAccessByTimeMiddleware:
     def __call__(self, request: HttpRequest):
         current_hour = datetime.now().hour
 
-        # Allowed hours: 6 <= hour < 21
         if current_hour < 6 or current_hour >= 21:
             user = request.user if request.user.is_authenticated else "Anonymous"
             log_message = (
@@ -66,29 +64,26 @@ class RestrictAccessByTimeMiddleware:
 
 class OffensiveLanguageMiddleware:
     """
-    Middleware that limits the number of chat messages a user can send
-    within a certain time window, based on their IP address.
-    - Max: 5 messages per minute per IP
+    Limits number of chat messages a user can send per IP.
+    Max: 5 POST requests to /messages/ per minute.
     """
 
     def __init__(self, get_response):
         self.get_response = get_response
         self.ip_requests = defaultdict(list)
-        self.limit = 5          # max messages
-        self.time_window = 60   # seconds (1 minute)
+        self.limit = 5
+        self.time_window = 60  # seconds (1 minute)
 
     def __call__(self, request: HttpRequest):
-        # Only enforce on POST requests to /messages/
         if request.method == "POST" and "/messages" in request.path:
             ip = self.get_client_ip(request)
             now = time.time()
 
-            # Clean up old timestamps outside the time window
+            # Clean up old timestamps
             self.ip_requests[ip] = [
                 ts for ts in self.ip_requests[ip] if now - ts < self.time_window
             ]
 
-            # Check if limit exceeded
             if len(self.ip_requests[ip]) >= self.limit:
                 user = request.user if request.user.is_authenticated else "Anonymous"
                 log_message = (
@@ -101,17 +96,41 @@ class OffensiveLanguageMiddleware:
                     "You have exceeded the limit of 5 messages per minute. Please wait before sending more."
                 )
 
-            # Record this request timestamp
             self.ip_requests[ip].append(now)
 
-        response = self.get_response(request)
-        return response
+        return self.get_response(request)
 
     def get_client_ip(self, request: HttpRequest):
-        """Helper to extract client IP address"""
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0]
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-        return ip
+            return x_forwarded_for.split(",")[0]
+        return request.META.get("REMOTE_ADDR")
+
+
+class RolepermissionMiddleware:
+    """
+    Restricts access to certain actions based on user role.
+    Only 'admin' or 'moderator' are allowed.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest):
+        user = request.user
+
+        if user.is_authenticated:
+            role = getattr(user, "role", None)
+
+            if role not in ["admin", "moderator"]:
+                log_message = (
+                    f"{datetime.now()} - User: {user} - Method: {request.method} "
+                    f"- Path: {request.path} - Status: 403 (Role restriction)"
+                )
+                logger.info(log_message)
+
+                return HttpResponseForbidden(
+                    "You do not have permission to perform this action."
+                )
+
+        return self.get_response(request)
