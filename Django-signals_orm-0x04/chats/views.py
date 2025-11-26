@@ -1,6 +1,9 @@
 from rest_framework import viewsets, status, filters, permissions
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+
 from .models import Conversation, Message, User
 from .serializers import ConversationSerializer, MessageSerializer
 from .permissions import IsParticipantOfConversation
@@ -38,12 +41,20 @@ class MessageViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsParticipantOfConversation]
     filterset_class = MessageFilter
     pagination_class = MessagePagination
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter,]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['message_body', 'sender__email']
     ordering_fields = ['sent_at']
 
     def get_queryset(self):
         return Message.objects.filter(conversation__participants=self.request.user)
+
+    @method_decorator(cache_page(60))  # ✅ Cache the list view for 60 seconds
+    def list(self, request, *args, **kwargs):
+        """
+        List messages in a conversation.
+        Cached for 60 seconds to reduce database hits.
+        """
+        return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         conversation_id = request.data.get('conversation')
@@ -55,8 +66,10 @@ class MessageViewSet(viewsets.ModelViewSet):
         conversation = get_object_or_404(Conversation, conversation_id=conversation_id)
 
         if request.user not in conversation.participants.all():
-            return Response({"error": "You are not a participant in this conversation."},
-                            status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "You are not a participant in this conversation."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         message = Message.objects.create(
             conversation=conversation,
