@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import cache_page  # ✅ add cache_page
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import logout
@@ -47,10 +48,12 @@ def send_message(request):
 
 
 @login_required
+@cache_page(60)  # ✅ cache this conversation list for 60 seconds
 def conversation_view(request, user_id):
     """
     Retrieve all messages between the logged-in user and another user.
     Optimized with select_related and prefetch_related.
+    Cached for 60 seconds to reduce database hits.
     """
     other_user = get_object_or_404(User, pk=user_id)
 
@@ -85,7 +88,6 @@ def unread_inbox(request):
     Display only unread messages for the logged-in user.
     Uses the custom manager: Message.unread.unread_for_user(request.user).
     """
-    # NOTE: The .only() optimization is defined inside the manager implementation.
     unread_messages = Message.unread.unread_for_user(request.user)
 
     data = [
