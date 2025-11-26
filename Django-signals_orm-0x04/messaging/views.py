@@ -83,9 +83,14 @@ def conversation_view(request, user_id):
 def unread_inbox(request):
     """
     Display only unread messages for the logged-in user.
-    Uses the custom manager: Message.unread.unread_for_user(request.user).
+    Uses explicit `.only()` and `select_related` for optimization.
     """
-    unread_messages = Message.unread.unread_for_user(request.user)
+    unread_messages = (
+        Message.objects.filter(receiver=request.user, read=False)
+        .only("id", "content", "timestamp", "sender")  # ✅ explicit .only in views.py
+        .select_related("sender")
+        .order_by("timestamp")
+    )
 
     data = [
         {
