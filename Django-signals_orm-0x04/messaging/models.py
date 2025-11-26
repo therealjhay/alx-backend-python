@@ -4,13 +4,29 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+class UnreadMessagesManager(models.Manager):
+    """
+    Custom manager to filter unread messages for a specific user.
+    """
+
+    def for_user(self, user):
+        # ✅ Filter unread messages for the given user
+        return (
+            self.get_queryset()
+            .filter(receiver=user, read=False)
+            .only("id", "sender", "receiver", "content", "timestamp")  # optimization
+        )
+
+
 class Message(models.Model):
     sender = models.ForeignKey(User, related_name="sent_messages", on_delete=models.CASCADE)
     receiver = models.ForeignKey(User, related_name="received_messages", on_delete=models.CASCADE)
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
-    # ✅ Self-referential foreign key for threaded replies
+    # ✅ New field to track read/unread status
+    read = models.BooleanField(default=False)
+
     parent_message = models.ForeignKey(
         "self",
         related_name="replies",
@@ -29,25 +45,9 @@ class Message(models.Model):
         blank=True
     )
 
+    # ✅ Attach custom manager
+    objects = models.Manager()              # default manager
+    unread = UnreadMessagesManager()        # custom manager
+
     def __str__(self):
         return f"Message {self.id} from {self.sender} to {self.receiver}"
-
-    # ✅ Recursive method to fetch replies in threaded format
-    def get_thread(self):
-        """
-        Recursively fetch all replies to this message.
-        Returns a list of dicts with nested replies.
-        """
-        thread = []
-        # Optimize queries: select_related for FK, prefetch_related for reverse FK
-        replies_qs = self.replies.all().select_related("sender", "receiver").prefetch_related("replies")
-        for reply in replies_qs:
-            thread.append({
-                "id": reply.id,
-                "sender": reply.sender.username,
-                "receiver": reply.receiver.username,
-                "content": reply.content,
-                "timestamp": reply.timestamp,
-                "replies": reply.get_thread()  # recursion
-            })
-        return thread

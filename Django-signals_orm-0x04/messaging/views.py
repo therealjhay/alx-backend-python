@@ -1,8 +1,9 @@
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import logout
 
 from .models import Message, User
 
@@ -12,22 +13,27 @@ from .models import Message, User
 @require_POST
 def send_message(request):
     """
-    View to send a new message.
+    Send a new message.
     Automatically sets sender=request.user and requires a receiver.
+    Supports replying to a parent_message for threaded conversations.
     """
     receiver_id = request.POST.get("receiver")
     content = request.POST.get("content")
+    parent_id = request.POST.get("parent_message")
 
     if not receiver_id or not content:
         return JsonResponse({"error": "Receiver and content are required."}, status=400)
 
     receiver = get_object_or_404(User, pk=receiver_id)
+    parent_message = None
+    if parent_id:
+        parent_message = get_object_or_404(Message, pk=parent_id)
 
-    # ✅ sender=request.user, receiver=receiver
     message = Message.objects.create(
         sender=request.user,
         receiver=receiver,
-        content=content
+        content=content,
+        parent_message=parent_message
     )
 
     return JsonResponse({
@@ -35,7 +41,8 @@ def send_message(request):
         "sender": message.sender.username,
         "receiver": message.receiver.username,
         "content": message.content,
-        "timestamp": message.timestamp
+        "timestamp": message.timestamp,
+        "parent_message": message.parent_message.id if message.parent_message else None
     })
 
 
@@ -47,7 +54,6 @@ def conversation_view(request, user_id):
     """
     other_user = get_object_or_404(User, pk=user_id)
 
-    # ✅ Use Message.objects.filter with select_related
     messages = (
         Message.objects.filter(
             sender__in=[request.user, other_user],
@@ -71,3 +77,37 @@ def conversation_view(request, user_id):
         })
 
     return JsonResponse(data, safe=False)
+
+
+@login_required
+def unread_inbox(request):
+    """
+    Display only unread messages for the logged-in user.
+    Uses the custom UnreadMessagesManager with .only() optimization.
+    """
+    unread_messages = Message.unread.for_user(request.user)
+
+    data = [
+        {
+            "id": msg.id,
+            "sender": msg.sender.username,
+            "content": msg.content,
+            "timestamp": msg.timestamp,
+        }
+        for msg in unread_messages
+    ]
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@require_POST
+def delete_user(request):
+    """
+    Allow a logged-in user to delete their account.
+    Signals handle cleanup of related data.
+    """
+    user = request.user
+    logout(request)
+    user.delete()
+    return JsonResponse({"message": "Your account and related data have been deleted."})
