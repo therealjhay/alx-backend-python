@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Service 1: The Database
+  db:
+    image: mysql:8.0
+    container_name: messaging_db
+    restart: always
+    # Best Practice: Externalize configuration
+    env_file:
+      - .env
+    # Best Practice: Use volumes for persistent data
+    volumes:
+      - db_data:/var/lib/mysql
+    # Best Practice: Use health checks
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Service 2: The Django App
+  web:
+    build: .
+    container_name: messaging_web
+    # Map port 8000 on host to 8000 in container
+    ports:
+      - "8000:8000"
+    # Pass environment variables to the container
+    env_file:
+      - .env
+    # Command to run migrations and then start the server
+    # We use 'sh -c' to chain commands
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    # Ensure DB is healthy before starting Django
+    depends_on:
+      db:
+        condition: service_healthy
+    # Mount code for live reloading during development (Optional but recommended)
+    volumes:
+      - .:/app
+
+# Define the volume for persistence
+volumes:
+  db_data:
