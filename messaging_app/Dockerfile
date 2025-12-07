@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1
 # 3. Work Directory
 WORKDIR /app
 
-# 4. Install COMPREHENSIVE System Dependencies
+# 4. Install COMPREHENSIVE System Dependencies -p
 # build-essential: Includes gcc, make, and core compilers
 # pkg-config: Helps Python find system libraries
 # default-libmysqlclient-dev: Required for MySQL drivers
