@@ -43,3 +43,7 @@ services:
 # Define the volume for persistence
 volumes:
   db_data:
+
+  ["MYSQL_USER", "MYSQL_DB", "MYSQL_PASSWORD"]
+
+  ["python3 manage.py runserver"]
