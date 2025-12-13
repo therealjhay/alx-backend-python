@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# 1. Deploy the Blue version (Current State)
+echo "Deploying Blue version..."
+kubectl apply -f blue_deployment.yaml
+
+# 2. Deploy the Green version (New State - initially no traffic)
+echo "Deploying Green version..."
+kubectl apply -f green_deployment.yaml
+
+# 3. Wait briefly for pods to initialize (optional sleep)
+sleep 10
+
+# 4. Check for errors in the Green version using logs
+echo "Checking logs for Green deployment errors..."
+# We use label selector (-l) to get logs from pods with version=green
+kubectl logs -l version=green --tail=20
+
+# 5. Apply the Service (Currently points to Blue based on the yaml above)
+echo "Applying Service configuration..."
+kubectl apply -f kubeservice.yaml
+
+echo "Deployment complete. Modify kubeservice.yaml selector to 'green' to switch traffic."
