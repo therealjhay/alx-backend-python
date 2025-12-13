@@ -1,0 +1,8 @@
+# Enable the Ingress addon (if using Minikube)
+minikube addons enable ingress
+
+# Apply the Ingress configuration
+kubectl apply -f ingress.yaml
+
+# (Optional) Verify the Ingress status
+kubectl get ingress

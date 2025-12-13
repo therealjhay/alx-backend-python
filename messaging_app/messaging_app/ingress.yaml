@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: messaging-ingress
+  annotations:
+    # Use this if you are using the NGINX Ingress Controller
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: messaging-app  # CHECK THIS: Must match metadata.name in your service.yaml
+                port:
+                  number: 5000       # CHECK THIS: Must match the port exposed in your service.yaml
