@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# 1. Scale the deployment to 3 replicas
+echo "Scaling deployment to 3 replicas..."
+kubectl scale deployment messaging-app-deployment --replicas=3
+
+echo "----------------------------------------"
+echo "Verifying Pods (Waiting for them to be Ready)..."
+# We wait a few seconds to let K8s react
+sleep 2
+kubectl get pods
+
+# Optional: Wait loop to ensure they are actually running before testing
+echo "Waiting for pods to stabilize..."
+kubectl wait --for=condition=ready pod -l app=messaging-app --timeout=60s
+
+echo "----------------------------------------"
+echo "Setting up access for Load Testing..."
+# We need to expose the service to localhost to test it with wrk
+# We run port-forward in the background (&)
+kubectl port-forward svc/messaging-app-service 8000:8000 &
+PID=$!
+# Give it a second to establish connection
+sleep 5
+
+echo "----------------------------------------"
+# 2. Perform Load Testing using wrk
+if command -v wrk &> /dev/null; then
+    echo "Starting load test with wrk (30s duration)..."
+    # -t12: 12 threads, -c400: 400 connections, -d30s: 30 seconds duration
+    wrk -t12 -c400 -d30s http://127.0.0.1:8000
+else
+    echo "Command 'wrk' not found. Skipping load test."
+    echo "Note: 'wrk' is a Linux tool. On Windows, consider using 'ab' (Apache Bench) or running wrk via Docker."
+fi
+
+# Kill the background port-forward process
+kill $PID
+
+echo "----------------------------------------"
+echo "Resource Usage (Top):"
+# 3. Monitor Resource Usage
+# Note: This requires 'minikube addons enable metrics-server' to be run previously
+kubectl top pods
