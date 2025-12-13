@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messaging-app-deployment
+  labels:
+    app: messaging-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: messaging-app
+  template:
+    metadata:
+      labels:
+        app: messaging-app
+    spec:
+      containers:
+      - name: messaging-app
+        image: messaging_app:v1.0
+        # CRITICAL: Ensures K8s uses the local image loaded via 'minikube image load'
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+        # We need to pass at least these to prevent immediate startup errors
+        # Ideally, we will move these to a ConfigMap/Secret in later tasks
+        - name: DEBUG
+          value: "True"
+        - name: SECRET_KEY
+          value: "temp-secret-key-for-k8s"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-app-service
+spec:
+  # ClusterIP makes it accessible ONLY from inside the cluster
+  type: ClusterIP
+  selector:
+    app: messaging-app
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
