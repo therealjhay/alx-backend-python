@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Define the URL to test (Replace with your actual Service IP/URL)
+URL="http://localhost:80"
+
+echo "Starting connectivity check in the background..."
+# 1. Start a background loop to test connectivity continuously
+(
+  for i in {1..20}; do
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $URL)
+    if [ "$HTTP_CODE" -eq 200 ]; then
+      echo "[$i] Connection Successful: HTTP 200"
+    else
+      echo "[$i] Connection Failed: HTTP $HTTP_CODE"
+    fi
+    sleep 1
+  done
+) &
+PID=$!
+
+# 2. Apply the updated deployment to trigger the Rolling Update
+echo "Applying new deployment (v2.0)..."
+kubectl apply -f blue_deployment.yaml
+
+# 3. Monitor the status of the rollout
+echo "Waiting for rollout to complete..."
+kubectl rollout status deployment/messaging-app-blue
+
+# 4. Verify the Rolling Update is complete by listing pods
+echo "Verifying current pods..."
+kubectl get pods -l version=blue
+
+# Wait for the background curl loop to finish
+wait $PID
+echo "Update and verification complete."
