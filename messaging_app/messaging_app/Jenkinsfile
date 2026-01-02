@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    environment {
+        // Replace with your Docker Hub username
+        DOCKER_HUB_USER = 'therealjhay' 
+        IMAGE_NAME = 'messaging-app'
+        // This tag uses the build number (e.g., v1, v2) for versioning
+        IMAGE_TAG = "v${BUILD_NUMBER}"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -16,12 +24,9 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip3 install --upgrade pip
-                    
-                    # The checker explicitly wants this path and pip3
                     if [ -f messaging_app/requirements.txt ]; then
                         pip3 install -r messaging_app/requirements.txt
                     fi
-                    
                     pip3 install pytest
                 '''
             }
@@ -31,9 +36,32 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    # Ensure we are testing the correct directory
                     pytest --junitxml=test-reports/results.xml messaging_app
                 '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // navigate to the directory containing Dockerfile
+                    sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} messaging_app/"
+                    // Also tag as 'latest' for convenience
+                    sh "docker tag ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    // Securely inject Docker Hub credentials
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                        sh "docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                        sh "docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest"
+                    }
+                }
             }
         }
     }
