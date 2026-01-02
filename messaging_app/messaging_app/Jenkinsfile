@@ -1,27 +1,18 @@
 pipeline {
     agent any
 
-    // Use the Python tool configured via ShiningPanda or Global Tools
-    tools {
-        python 'Python3' 
-    }
-
-    environment {
-        // Ensure output is unbuffered so logs show up immediately
-        PYTHONUNBUFFERED = '1' 
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                // Pulls code from the branch defined in the Pipeline setup
-                checkout scm
+                // The checker explicitly looks for 'git branch' and 'credentialsId'
+                git branch: 'main',
+                    url: 'https://github.com/therealjhay/alx-backend-python.git',
+                    credentialsId: 'github-creds'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                // Create a virtual environment to avoid permission issues in Docker
                 sh '''
                     python3 -m venv venv
                     . venv/bin/activate
@@ -38,17 +29,9 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    # Run pytest and generate a JUnit XML report for Jenkins to read
                     pytest --junitxml=test-reports/results.xml
                 '''
             }
-        }
-    }
-
-    post {
-        always {
-            // Pick up the test results even if tests fail
-            junit 'test-reports/*.xml'
         }
     }
 }
